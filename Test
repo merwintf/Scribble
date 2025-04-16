@@ -1,0 +1,162 @@
+try
+    {
+        // Parse command-line arguments
+        string imagePath = args[0];
+        double boundsWidth = double.Parse(args[1]);
+        double boundsHeight = double.Parse(args[2]);
+        string outputPath = args[3];
+        string coordsFile = null;
+
+        // Check for optional --coords argument
+        if (args.Length > 4 && args[4] == "--coords" && args.Length > 5)
+        {
+            coordsFile = args[5];
+        }
+
+        // Load the image to get its dimensions
+        using (Bitmap image = new Bitmap(imagePath))
+        {
+            int imageWidth = image.Width;
+            int imageHeight = image.Height;
+
+            // Calculate aspect ratios
+            double boundsAspectRatio = boundsWidth / boundsHeight;
+            double imageAspectRatio = (double)imageWidth / imageHeight;
+
+            // Check if aspect ratios match (within a small tolerance)
+            const double tolerance = 0.001;
+            int newWidth, newHeight, offsetX, offsetY;
+
+            if (Math.Abs(boundsAspectRatio - imageAspectRatio) < tolerance)
+            {
+                // Aspect ratios match; copy the original image to output
+                File.Copy(imagePath, outputPath, true);
+                newWidth = imageWidth;
+                newHeight = imageHeight;
+                offsetX = 0;
+                offsetY = 0;
+                Console.WriteLine($"Aspect ratios match. Original image copied to {outputPath}");
+                Console.WriteLine($"Dimensions: {imageWidth} x {imageHeight} pixels");
+                Console.WriteLine("Offsets: offsetX = 0, offsetY = 0 (no extension)");
+            }
+            else
+            {
+                // Determine new dimensions
+                if (boundsAspectRatio > imageAspectRatio)
+                {
+                    // Image is too tall; extend width to the right
+                    newHeight = imageHeight;
+                    newWidth = (int)Math.Ceiling(imageHeight * boundsAspectRatio);
+                    offsetX = 0; // Place original image at left
+                    offsetY = 0; // No vertical offset
+                }
+                else
+                {
+                    // Image is too wide; extend height to the top
+                    newWidth = imageWidth;
+                    newHeight = (int)Math.Ceiling(imageWidth / boundsAspectRatio);
+                    offsetX = 0; // No horizontal offset
+                    offsetY = newHeight - imageHeight; // Place original image at bottom
+                }
+
+                // Create new image with extended dimensions
+                using (Bitmap newImage = new Bitmap(newWidth, newHeight, PixelFormat.Format32bppArgb))
+                {
+                    using (Graphics graphics = Graphics.FromImage(newImage))
+                    {
+                        // Clear with transparent background
+                        graphics.Clear(Color.Transparent);
+
+                        // Draw the original image at the specified position
+                        graphics.DrawImage(image, offsetX, offsetY, imageWidth, imageHeight);
+
+                        // Fill extended areas
+                        // Right extension (if any) - use mirroring
+                        if (newWidth > imageWidth)
+                        {
+                            // Mirror right side
+                            using (Bitmap rightExtension = new Bitmap(newWidth - imageWidth, imageHeight))
+                            {
+                                for (int x = 0; x < newWidth - imageWidth; x++)
+                                {
+                                    for (int y = 0; y < imageHeight; y++)
+                                    {
+                                        rightExtension.SetPixel(x, y, image.GetPixel(imageWidth - 1 - (x % imageWidth), y));
+                                    }
+                                }
+                                graphics.DrawImage(rightExtension, imageWidth, 0);
+                            }
+                        }
+
+                        // Top extension (if any) - use wrapping like Google Maps
+                        if (newHeight > imageHeight)
+                        {
+                            // Top extension: copy from bottom of original image
+                            using (Bitmap topExtension = new Bitmap(newWidth, newHeight - imageHeight))
+                            {
+                                for (int x = 0; x < newWidth; x++)
+                                {
+                                    for (int y = 0; y < newHeight - imageHeight; y++)
+                                    {
+                                        int srcX = x % imageWidth;
+                                        int srcY = imageHeight - (newHeight - imageHeight) + y;
+                                        topExtension.SetPixel(x, y, image.GetPixel(srcX, srcY % imageHeight));
+                                    }
+                                }
+                                graphics.DrawImage(topExtension, 0, 0);
+                            }
+                        }
+                    }
+
+                    // Save the new image
+                    newImage.Save(outputPath, ImageFormat.Png);
+                    Console.WriteLine($"New image saved to {outputPath}");
+                    Console.WriteLine($"New dimensions: {newWidth} x {newHeight} pixels");
+                }
+            }
+
+            // Calculate scale factors for map-to-pixel conversion
+            double scaleX = imageWidth / boundsWidth;
+            double scaleY = imageHeight / boundsHeight;
+
+            // Output transformation details
+            Console.WriteLine($"Offsets: offsetX = {offsetX}, offsetY = {offsetY}");
+            Console.WriteLine($"Scale factors: scaleX = {scaleX:F6}, scaleY = {scaleY:F6}");
+            Console.WriteLine("To adjust map coordinates (x, y):");
+            Console.WriteLine("  pixelX = (x * scaleX) + offsetX");
+            Console.WriteLine("  pixelY = (y * scaleY) + offsetY");
+
+            // Process coordinates file if provided
+            if (!string.IsNullOrEmpty(coordsFile) && File.Exists(coordsFile))
+            {
+                string outputCoordsFile = Path.Combine(Path.GetDirectoryName(coordsFile), "adjusted_" + Path.GetFileName(coordsFile));
+                List<string> adjustedCoords = new List<string>();
+
+                foreach (string line in File.ReadAllLines(coordsFile))
+                {
+                    string[] parts = line.Split(',');
+                    if (parts.Length == 2 && double.TryParse(parts[0], out double x) && double.TryParse(parts[1], out double y))
+                    {
+                        // Convert map-space to pixel-space
+                        double pixelX = (x * scaleX) + offsetX;
+                        double pixelY = (y * scaleY) + offsetY;
+
+                        // Round to nearest pixel for plotting
+                        int adjustedX = (int)Math.Round(pixelX);
+                        int adjustedY = (int)Math.Round(pixelY);
+
+                        adjustedCoords.Add($"{adjustedX},{adjustedY}");
+                    }
+                }
+
+                // Write adjusted coordinates to output file
+                File.WriteAllLines(outputCoordsFile, adjustedCoords);
+                Console.WriteLine($"Adjusted coordinates saved to {outputCoordsFile}");
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error: {ex.Message}");
+    }
+}
