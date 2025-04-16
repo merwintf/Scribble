@@ -9,8 +9,6 @@ class Program
     {
         if (args.Length != 4)
         {
-            Console.WriteLine("Usage: program.exe <image_path> <bounds_width> <bounds_height> <output_path>");
-            Console.WriteLine("For GTA IV, use approximate bounds like 4000x4000 meters (aspect ratio 1:1).");
             return;
         }
 
