@@ -1,32 +1,40 @@
-using System.Drawing;
+using System;
+using System.Windows;
 
 public class GridSelector
 {
-    // Method to start recursive selection of all grid squares in the rectangle
-    public void SelectAllGrids(Rectangle rect)
+    // Method to start recursive selection of all grid squares in the Rect
+    public void SelectAllGrids(Rect rect)
     {
-        SelectGrid(rect, rect.X, rect.Y);
+        // Convert to integer bounds
+        int startX = (int)Math.Floor(rect.X);
+        int startY = (int)Math.Floor(rect.Y);
+        int endX = (int)Math.Ceiling(rect.X + rect.Width) - 1;
+        int endY = (int)Math.Ceiling(rect.Y + rect.Height) - 1;
+
+        // Start recursion at the top-left integer coordinate
+        SelectGrid(startX, startY, endX, endY, startX, startY);
     }
 
     // Recursive method to select each grid square
-    private void SelectGrid(Rectangle rect, int x, int y)
+    private void SelectGrid(int x, int y, int endX, int endY, int startX, int startY)
     {
         // Base case: if x or y is out of bounds, stop recursion
-        if (x >= rect.X + rect.Width || y >= rect.Y + rect.Height)
+        if (x > endX || y > endY)
             return;
 
         // Process the current grid square (e.g., print or select it)
         Console.WriteLine($"Selecting grid at ({x}, {y})");
 
         // Move to the next column in the same row
-        if (x + 1 < rect.X + rect.Width)
+        if (x < endX)
         {
-            SelectGrid(rect, x + 1, y);
+            SelectGrid(x + 1, y, endX, endY, startX, startY);
         }
-        // Move to the next row, reset x to the starting X
-        else if (y + 1 < rect.Y + rect.Height)
+        // Move to the next row, reset x to startX
+        else if (y < endY)
         {
-            SelectGrid(rect, rect.X, y + 1);
+            SelectGrid(startX, y + 1, endX, endY, startX, startY);
         }
     }
 }
