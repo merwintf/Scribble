@@ -1,0 +1,19 @@
+<Button Content="Click Me" Width="100" Height="50" Background="LightGray">
+    <Button.DataContext>
+        <local:ViewModel/>
+    </Button.DataContext>
+    <Button.Triggers>
+        <EventTrigger RoutedEvent="Binding.TargetUpdated">
+            <BeginStoryboard>
+                <Storyboard>
+                    <ColorAnimationUsingKeyFrames 
+                        Storyboard.TargetProperty="(Button.Background).(SolidColorBrush.Color)"
+                        RepeatBehavior="3x" Duration="0:0:1">
+                        <EasingColorKeyFrame KeyTime="0:0:0" Value="Red"/>
+                        <EasingColorKeyFrame KeyTime="0:0:0.5" Value="Transparent"/>
+                    </ColorAnimationUsingKeyFrames>
+                </Storyboard>
+            </BeginStoryboard>
+        </EventTrigger>
+    </Button.Triggers>
+</Button>
