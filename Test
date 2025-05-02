@@ -1,5 +1,6 @@
 try
     {
+(?i)\b(?:https?://|[a-zA-Z][a-zA-Z0-9-]*://)\S*[^\s.,!?]
         // Parse command-line arguments
         string imagePath = args[0];
         double boundsWidth = double.Parse(args[1]);
