@@ -1,28 +1,95 @@
-public void SetTextWithLinks(string input)
+using System;
+using System.Text.RegularExpressions;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Documents;
+using System.Windows.Input;
+using System.Windows.Media;
+
+public class SelectableLinkTextBlock : TextBlock
 {
-    MyTextBlock.Inlines.Clear();
+    private Point? _selectionStart;
+    private Point? _selectionEnd;
 
-    string pattern = @"(\b(?:https?:\/\/|url:|[a-zA-Z0-9]+:\/\/)[^\s]+)";
-    var parts = Regex.Split(input, pattern);
-
-    foreach (var part in parts)
+    public string RawText
     {
-        if (Regex.IsMatch(part, pattern))
+        get => (string)GetValue(RawTextProperty);
+        set => SetValue(RawTextProperty, value);
+    }
+
+    public static readonly DependencyProperty RawTextProperty =
+        DependencyProperty.Register(nameof(RawText), typeof(string), typeof(SelectableLinkTextBlock),
+            new PropertyMetadata("", OnRawTextChanged));
+
+    private static void OnRawTextChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is SelectableLinkTextBlock control && e.NewValue is string text)
         {
-            var hyperlink = new Hyperlink(new Run(part))
-            {
-                NavigateUri = new Uri(part, UriKind.RelativeOrAbsolute)
-            };
-            hyperlink.RequestNavigate += (s, e) =>
-            {
-                Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
-                e.Handled = true;
-            };
-            MyTextBlock.Inlines.Add(hyperlink);
+            control.RenderTextWithLinks(text);
         }
-        else
+    }
+
+    private void RenderTextWithLinks(string input)
+    {
+        Inlines.Clear();
+
+        string pattern = @"(\b(?:https?:\/\/|url:|[a-zA-Z0-9]+:\/\/)[^\s]+)";
+        var parts = Regex.Split(input, pattern);
+
+        foreach (var part in parts)
         {
-            MyTextBlock.Inlines.Add(new Run(part));
+            if (Regex.IsMatch(part, pattern))
+            {
+                var hyperlink = new Hyperlink(new Run(part))
+                {
+                    NavigateUri = new Uri(part, UriKind.RelativeOrAbsolute)
+                };
+                hyperlink.RequestNavigate += (s, e) =>
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(e.Uri.AbsoluteUri)
+                    {
+                        UseShellExecute = true
+                    });
+                    e.Handled = true;
+                };
+                Inlines.Add(hyperlink);
+            }
+            else
+            {
+                Inlines.Add(new Run(part));
+            }
         }
+    }
+
+    public SelectableLinkTextBlock()
+    {
+        MouseDown += OnMouseDown;
+        MouseMove += OnMouseMove;
+        MouseUp += OnMouseUp;
+    }
+
+    private void OnMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        _selectionStart = e.GetPosition(this);
+        CaptureMouse();
+    }
+
+    private void OnMouseMove(object sender, MouseEventArgs e)
+    {
+        if (_selectionStart != null && e.LeftButton == MouseButtonState.Pressed)
+        {
+            _selectionEnd = e.GetPosition(this);
+            // Optional: implement visual feedback (like drawing a highlight rectangle)
+        }
+    }
+
+    private void OnMouseUp(object sender, MouseButtonEventArgs e)
+    {
+        _selectionEnd = e.GetPosition(this);
+        ReleaseMouseCapture();
+
+        // Optional: use HitTest + VisualTreeHelper to extract text from selection bounds
+        _selectionStart = null;
+        _selectionEnd = null;
     }
 }
