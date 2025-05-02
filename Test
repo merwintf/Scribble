@@ -93,3 +93,107 @@ public class SelectableLinkTextBlock : TextBlock
         _selectionEnd = null;
     }
 }
+
+
+
+
+using System;
+using System.Text.RegularExpressions;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Documents;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Diagnostics;
+
+public class SelectableLinkTextBlock : FrameworkElement
+{
+    private string _text = "";
+    private FormattedText _formattedText;
+    private Point? _startPoint;
+    private Point? _endPoint;
+    private readonly DrawingVisual _visual = new DrawingVisual();
+    private readonly VisualCollection _visuals;
+
+    public string Text
+    {
+        get => _text;
+        set
+        {
+            _text = value;
+            CreateFormattedText();
+            InvalidateVisual();
+        }
+    }
+
+    public SelectableLinkTextBlock()
+    {
+        _visuals = new VisualCollection(this) { _visual };
+        MouseDown += OnMouseDown;
+        MouseMove += OnMouseMove;
+        MouseUp += OnMouseUp;
+    }
+
+    private void CreateFormattedText()
+    {
+        _formattedText = new FormattedText(
+            _text,
+            System.Globalization.CultureInfo.CurrentCulture,
+            FlowDirection.LeftToRight,
+            new Typeface("Segoe UI"),
+            14,
+            Brushes.Black,
+            VisualTreeHelper.GetDpi(this).PixelsPerDip
+        );
+    }
+
+    protected override int VisualChildrenCount => _visuals.Count;
+    protected override Visual GetVisualChild(int index) => _visuals[index];
+
+    protected override void OnRender(DrawingContext dc)
+    {
+        base.OnRender(dc);
+        if (_formattedText == null)
+            return;
+
+        dc.DrawText(_formattedText, new Point(0, 0));
+
+        if (_startPoint.HasValue && _endPoint.HasValue)
+        {
+            var rect = new Rect(_startPoint.Value, _endPoint.Value);
+            rect = Rect.Intersect(rect, new Rect(0, 0, _formattedText.Width, _formattedText.Height));
+            if (!rect.IsEmpty)
+                dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(60, 0, 120, 215)), null, rect);
+        }
+    }
+
+    private void OnMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        _startPoint = e.GetPosition(this);
+        CaptureMouse();
+        InvalidateVisual();
+    }
+
+    private void OnMouseMove(object sender, MouseEventArgs e)
+    {
+        if (_startPoint != null && e.LeftButton == MouseButtonState.Pressed)
+        {
+            _endPoint = e.GetPosition(this);
+            InvalidateVisual();
+        }
+    }
+
+    private void OnMouseUp(object sender, MouseButtonEventArgs e)
+    {
+        _endPoint = e.GetPosition(this);
+        ReleaseMouseCapture();
+        InvalidateVisual();
+
+        // Optional: copy selected text to clipboard using character hit testing
+    }
+
+    protected override Size MeasureOverride(Size availableSize)
+    {
+        return new Size(_formattedText?.Width ?? 0, _formattedText?.Height ?? 0);
+    }
+}
