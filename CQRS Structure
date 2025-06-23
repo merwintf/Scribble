@@ -1,0 +1,63 @@
+OrderService/
+├── src/
+│   ├── OrderService.Api/                       # ASP.NET Core Web API
+│   │   ├── Controllers/
+│   │   │   └── OrdersController.cs
+│   │   ├── Extensions/
+│   │   │   └── ServiceCollectionExtensions.cs
+│   │   ├── Program.cs
+│   │   └── appsettings.json
+│   │
+│   ├── OrderService.Application/              # CQRS layer
+│   │   ├── Commands/
+│   │   │   ├── PlaceOrder/
+│   │   │   │   ├── PlaceOrderCommand.cs
+│   │   │   │   └── PlaceOrderCommandHandler.cs
+│   │   ├── Queries/
+│   │   │   ├── GetOrderDetails/
+│   │   │   │   ├── GetOrderDetailsQuery.cs
+│   │   │   │   └── GetOrderDetailsHandler.cs
+│   │   ├── Interfaces/
+│   │   │   ├── IOrderDbContext.cs
+│   │   │   └── IEventPublisher.cs
+│   │   ├── DTOs/
+│   │   │   ├── OrderDto.cs
+│   │   │   └── OrderItemDto.cs
+│   │   └── Exceptions/
+│   │       └── NotFoundException.cs
+│   │
+│   ├── OrderService.Domain/                   # Domain layer
+│   │   ├── Entities/
+│   │   │   ├── Order.cs
+│   │   │   ├── OrderItem.cs
+│   │   │   └── Customer.cs
+│   │   └── Common/
+│   │       └── BaseEntity.cs
+│   │
+│   ├── OrderService.Infrastructure/           # Data access & RabbitMQ
+│   │   ├── Data/
+│   │   │   ├── OrderDbContext.cs
+│   │   │   └── Configurations/
+│   │   │       └── OrderConfiguration.cs
+│   │   ├── Messaging/
+│   │   │   └── RabbitMqPublisher.cs
+│   │   ├── Extensions/
+│   │   │   └── RabbitMqExtensions.cs
+│   │   └── DependencyInjection.cs
+│   │
+│   └── OrderService.Contracts/                # Shared event contracts
+│       └── Events/
+│           └── OrderPlacedEvent.cs
+│
+├── tests/
+│   ├── OrderService.UnitTests/
+│   │   └── PlaceOrderCommandHandlerTests.cs
+│   └── OrderService.IntegrationTests/
+│       └── OrdersApiTests.cs
+│
+├── docker/
+│   └── rabbitmq/
+│       └── docker-compose.yml
+│
+├── README.md
+└── OrderService.sln
