@@ -1,6 +1,6 @@
 using System; using System.Collections.Generic; using System.Collections.ObjectModel; using System.Collections.Specialized; using System.ComponentModel; using System.Linq; using System.Windows.Threading;
 
-public class SmartObservableCollection<T> : ObservableCollection<T> { private readonly Dispatcher _dispatcher;
+public class SmartObservableCollection<T> : ObservableCollection<T> { private readonly Dispatcher _dispatcher; private bool _suppressNotifications = false; private bool _pendingReset = false;
 
 public SmartObservableCollection()
 {
@@ -21,6 +21,42 @@ private void RunOnUIThread(Action action, DispatcherPriority priority = Dispatch
         _dispatcher.BeginInvoke(action, priority);
 }
 
+private void NotifyResetSmart()
+{
+    if (_suppressNotifications)
+    {
+        _pendingReset = true;
+        return;
+    }
+
+    OnPropertyChanged(new PropertyChangedEventArgs(nameof(Count)));
+    OnPropertyChanged(new PropertyChangedEventArgs("Item[]"));
+    OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
+}
+
+public IDisposable SuspendNotifications()
+{
+    _suppressNotifications = true;
+    return new NotificationScope(this);
+}
+
+private class NotificationScope : IDisposable
+{
+    private readonly SmartObservableCollection<T> _collection;
+    public NotificationScope(SmartObservableCollection<T> collection) => _collection = collection;
+
+    public void Dispose()
+    {
+        _collection._suppressNotifications = false;
+        if (_collection._pendingReset)
+        {
+            _collection._pendingReset = false;
+            _collection.OnPropertyChanged(new PropertyChangedEventArgs("Item[]"));
+            _collection.OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
+        }
+    }
+}
+
 public new void Add(T item)
 {
     RunOnUIThread(() => base.Add(item));
@@ -35,7 +71,11 @@ public new bool Remove(T item)
 
 public new void Clear()
 {
-    RunOnUIThread(() => base.Clear());
+    RunOnUIThread(() =>
+    {
+        base.Clear();
+        NotifyResetSmart();
+    });
 }
 
 public new void Insert(int index, T item)
@@ -60,16 +100,10 @@ public void AddRange(IEnumerable<T> items)
 
     RunOnUIThread(() =>
     {
-        var newItems = items.ToList();
-        int startIndex = Items.Count;
-
-        foreach (var item in newItems)
+        foreach (var item in items)
             Items.Add(item);
 
-        OnPropertyChanged(new PropertyChangedEventArgs(nameof(Count)));
-        OnPropertyChanged(new PropertyChangedEventArgs("Item[]"));
-        OnCollectionChanged(new NotifyCollectionChangedEventArgs(
-            NotifyCollectionChangedAction.Add, newItems, startIndex));
+        NotifyResetSmart();
     });
 }
 
@@ -79,20 +113,10 @@ public void RemoveRange(IEnumerable<T> items)
 
     RunOnUIThread(() =>
     {
-        var removed = new List<T>();
         foreach (var item in items)
-        {
-            if (Items.Remove(item))
-                removed.Add(item);
-        }
+            Items.Remove(item);
 
-        if (removed.Count > 0)
-        {
-            OnPropertyChanged(new PropertyChangedEventArgs(nameof(Count)));
-            OnPropertyChanged(new PropertyChangedEventArgs("Item[]"));
-            OnCollectionChanged(new NotifyCollectionChangedEventArgs(
-                NotifyCollectionChangedAction.Remove, removed));
-        }
+        NotifyResetSmart();
     });
 }
 
@@ -104,10 +128,7 @@ public void AddSorted(T item, IComparer<T>? comparer = null)
         if (comparer == null)
             throw new InvalidOperationException($"Type {typeof(T)} must implement IComparable<T> or a comparer must be provided.");
 
-        int index = 0;
-        while (index < Count && comparer.Compare(this[index], item) < 0)
-            index++;
-
+        int index = Items.BinarySearchInsertIndex(item, comparer);
         base.Insert(index, item);
     });
 }
@@ -143,50 +164,11 @@ public void AddRangeSorted(IEnumerable<T> newItems, IComparer<T>? comparer = nul
         foreach (var item in merged)
             Items.Add(item);
 
-        OnPropertyChanged(new PropertyChangedEventArgs(nameof(Count)));
-        OnPropertyChanged(new PropertyChangedEventArgs("Item[]"));
-        OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
+        NotifyResetSmart();
     });
 }
 
-                                                                     private bool _suppressNotifications = false;
-private bool _pendingReset = false;
-
-public IDisposable SuspendNotifications()
-{
-    _suppressNotifications = true;
-    return new NotificationScope(this);
 }
 
-private class NotificationScope : IDisposable
-{
-    private readonly SmartObservableCollection<T> _collection;
-    public NotificationScope(SmartObservableCollection<T> collection) => _collection = collection;
-
-    public void Dispose()
-    {
-        _collection._suppressNotifications = false;
-        if (_collection._pendingReset)
-        {
-            _collection._pendingReset = false;
-            _collection.OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
-            _collection.OnPropertyChanged(new PropertyChangedEventArgs("Item[]"));
-        }
-    }
-}
-
-private void NotifyResetSmart()
-{
-    if (_suppressNotifications)
-    {
-        _pendingReset = true;
-        return;
-    }
-
-    OnPropertyChanged(new PropertyChangedEventArgs(nameof(Count)));
-    OnPropertyChanged(new PropertyChangedEventArgs("Item[]"));
-    OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
-}
-
-}
+public static class ListExtensions { public static int BinarySearchInsertIndex<T>(this IList<T> list, T item, IComparer<T> comparer) { int low = 0, high = list.Count; while (low < high) { int mid = (low + high) / 2; if (comparer.Compare(list[mid], item) < 0) low = mid + 1; else high = mid; } return low; } }
 
