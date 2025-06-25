@@ -149,5 +149,44 @@ public void AddRangeSorted(IEnumerable<T> newItems, IComparer<T>? comparer = nul
     });
 }
 
+                                                                     private bool _suppressNotifications = false;
+private bool _pendingReset = false;
+
+public IDisposable SuspendNotifications()
+{
+    _suppressNotifications = true;
+    return new NotificationScope(this);
+}
+
+private class NotificationScope : IDisposable
+{
+    private readonly SmartObservableCollection<T> _collection;
+    public NotificationScope(SmartObservableCollection<T> collection) => _collection = collection;
+
+    public void Dispose()
+    {
+        _collection._suppressNotifications = false;
+        if (_collection._pendingReset)
+        {
+            _collection._pendingReset = false;
+            _collection.OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
+            _collection.OnPropertyChanged(new PropertyChangedEventArgs("Item[]"));
+        }
+    }
+}
+
+private void NotifyResetSmart()
+{
+    if (_suppressNotifications)
+    {
+        _pendingReset = true;
+        return;
+    }
+
+    OnPropertyChanged(new PropertyChangedEventArgs(nameof(Count)));
+    OnPropertyChanged(new PropertyChangedEventArgs("Item[]"));
+    OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
+}
+
 }
 
