@@ -1,0 +1,66 @@
+LibraryDemo/
+├── docker-compose.yml
+├── LibraryDemo.sln
+├── src/
+│   ├── LibraryDemo.Domain/             # Domain model
+│   │   ├── Entities/
+│   │   │   ├── Author.cs
+│   │   │   ├── Book.cs
+│   │   │   └── BorrowingRecord.cs
+│   │   ├── Events/
+│   │   │   ├── BookEvents.cs
+│   │   │   └── BorrowingEvents.cs
+│   │   └── LibraryDemo.Domain.csproj
+│   │
+│   ├── LibraryDemo.Contracts/          # Shared message contracts
+│   │   ├── ExternalInventoryUpdate.cs
+│   │   └── LibraryDemo.Contracts.csproj
+│   │
+│   ├── LibraryDemo.Application/        # CQRS: DTOs, Commands/Queries, Handlers
+│   │   ├── DTOs/
+│   │   │   ├── AuthorDto.cs
+│   │   │   ├── BookDto.cs
+│   │   │   └── BorrowingDto.cs
+│   │   ├── Commands/
+│   │   │   ├── AddAuthorCommand.cs
+│   │   │   ├── AddBookCommand.cs
+│   │   │   ├── DeleteAuthorCommand.cs
+│   │   │   ├── DeleteBookCommand.cs
+│   │   │   ├── IssueBookCommand.cs
+│   │   │   ├── ReturnBookCommand.cs
+│   │   │   ├── UpdateAuthorCommand.cs
+│   │   │   └── UpdateBookCommand.cs
+│   │   ├── Queries/
+│   │   │   ├── GetAuthorByIdQuery.cs
+│   │   │   ├── GetAuthorsQuery.cs
+│   │   │   ├── GetBookByIdQuery.cs
+│   │   │   ├── SearchBooksQuery.cs
+│   │   │   └── GetBorrowingsByMemberQuery.cs
+│   │   ├── Handlers/
+│   │   │   ├── AuthorHandlers.cs
+│   │   │   ├── BookCommandHandlers.cs
+│   │   │   ├── BookEventHandlers.cs
+│   │   │   ├── BookQueryHandlers.cs
+│   │   │   ├── BorrowingHandlers.cs
+│   │   │   └── BorrowingEventHandlers.cs
+│   │   └── LibraryDemo.Application.csproj
+│   │
+│   ├── LibraryDemo.Infrastructure/     # EF Core, Wolverine, RabbitMQ
+│   │   ├── Messaging/
+│   │   │   ├── RabbitMqConfig.cs
+│   │   │   └── WolverineConfig.cs
+│   │   ├── Persistence/
+│   │   │   └── LibraryDbContext.cs
+│   │   └── LibraryDemo.Infrastructure.csproj
+│   │
+│   └── LibraryDemo.Api/                # ASP.NET Core entrypoint
+│       ├── Controllers/
+│       │   ├── AuthorsController.cs
+│       │   ├── BooksController.cs
+│       │   └── BorrowingController.cs
+│       ├── appsettings.json
+│       ├── Program.cs
+│       └── LibraryDemo.Api.csproj
+└── tests/
+    └── LibraryDemo.Tests/              # (Optional) xUnit tests
+        └── LibraryDemo.Tests.csproj
