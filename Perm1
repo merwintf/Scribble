@@ -1,56 +1,81 @@
 using System;
+using System.Text;
 using System.Collections.Generic;
+
+static class Combos
+{
+    // Prints:
+    // 1) all full-length index-aligned combos
+    // 2) optional prefix-length combos (e.g., k) that use at least one replacement
+    public static void PrintIndexAligned(
+        IReadOnlyList<string> baseList,
+        IReadOnlyList<string> replList,
+        int? extraPrefixLen = null,    // e.g., pass k to also print k-length prefixes
+        bool onlyIfUsesReplacement = true)
+    {
+        int n = baseList.Count;
+        int k = Math.Min(n, replList.Count);
+        var sb = new StringBuilder(128);
+
+        // ---- Full length (2^k masks; positions >= k are fixed as base) ----
+        int masks = 1 << k;
+        for (int mask = 0; mask < masks; mask++)
+        {
+            sb.Clear();
+            // indices < k: choose base/repl by mask
+            for (int i = 0; i < k; i++)
+            {
+                if (i > 0) sb.Append('+');
+                sb.Append(((mask >> i) & 1) != 0 ? replList[i] : baseList[i]);
+            }
+            // indices >= k: always base
+            for (int i = k; i < n; i++)
+            {
+                sb.Append('+').Append(baseList[i]);
+            }
+            Console.WriteLine(sb.ToString());
+        }
+
+        // ---- Optional prefix length (like your A+Y, X+Y, X+B) ----
+        if (extraPrefixLen is int L && L > 0)
+        {
+            int Lc = Math.Min(L, n);      // cap within base length
+            int Lk = Math.Min(Lc, k);     // replacements available only up to k
+            if (Lk > 0)
+            {
+                int pmasks = 1 << Lk;
+                for (int mask = 0; mask < pmasks; mask++)
+                {
+                    if (onlyIfUsesReplacement && mask == 0) continue; // skip pure base prefix
+
+                    sb.Clear();
+                    // first Lk indices: base/repl by mask
+                    for (int i = 0; i < Lk; i++)
+                    {
+                        if (i > 0) sb.Append('+');
+                        sb.Append(((mask >> i) & 1) != 0 ? replList[i] : baseList[i]);
+                    }
+                    // if L exceeds Lk, those positions (no replacement) are base
+                    for (int i = Lk; i < Lc; i++)
+                    {
+                        if (i > 0) sb.Append('+');
+                        sb.Append(baseList[i]);
+                    }
+                    Console.WriteLine(sb.ToString());
+                }
+            }
+        }
+    }
+}
 
 class Program
 {
     static void Main()
     {
-        var list1 = new List<string> { "A", "B", "C" };
-        var list2 = new List<string> { "X", "Y" }; // replacements for indices 0 and 1
+        var list1 = new[] { "A", "B", "C" };
+        var list2 = new[] { "X", "Y" };
 
-        // Full length (3)
-        foreach (var combo in IndexAligned(list1.Count, list1, list2))
-            Console.WriteLine(string.Join("+", combo));
-
-        // 2-length prefixes that use at least one replacement
-        int L = Math.Min(list2.Count, list1.Count - 1);
-        if (L > 0)
-        {
-            foreach (var combo in IndexAligned(L, list1, list2))
-            {
-                bool usesReplacement = false;
-                for (int i = 0; i < L; i++)
-                    if (combo[i] != list1[i]) { usesReplacement = true; break; }
-
-                if (usesReplacement)
-                    Console.WriteLine(string.Join("+", combo));
-            }
-        }
-    }
-
-    static IEnumerable<List<string>> IndexAligned(int len, List<string> baseList, List<string> replList)
-    {
-        int masks = 1 << len;
-        for (int mask = 0; mask < masks; mask++)
-        {
-            var cur = new List<string>(len);
-            bool ok = true;
-
-            for (int i = 0; i < len; i++)
-            {
-                bool useRepl = (mask & (1 << i)) != 0;
-                if (useRepl)
-                {
-                    if (i < replList.Count) cur.Add(replList[i]);
-                    else { ok = false; break; }
-                }
-                else
-                {
-                    cur.Add(baseList[i]);
-                }
-            }
-
-            if (ok) yield return cur;
-        }
+        // k = 2 here; ask also for k-length prefixes (A+Y, X+B, X+Y), but skip pure base (A+B)
+        Combos.PrintIndexAligned(list1, list2, extraPrefixLen: Math.Min(list1.Length, list2.Length), onlyIfUsesReplacement: true);
     }
 }
