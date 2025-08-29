@@ -1,0 +1,50 @@
+using SkiaSharp;
+
+using var input = SKBitmap.Decode(inputPath);
+
+// 1) upscale 2–3x
+int sx = input.Width * 3, sy = input.Height * 3;
+using var up = new SKBitmap(sx, sy, SKColorType.Gray8, SKAlphaType.Opaque);
+using (var canvas = new SKCanvas(up))
+{
+    canvas.Scale(3, 3);
+    var paint = new SKPaint { FilterQuality = SKFilterQuality.High }; // bicubic-ish
+    canvas.DrawBitmap(input, 0, 0, paint);
+}
+
+// 2) unsharp mask (simple)
+using var blurred = new SKBitmap(sx, sy, up.ColorType, up.AlphaType);
+using (var surf = new SKSurface(new SKImageInfo(sx, sy)))
+{
+    var c = surf.Canvas;
+    c.Clear(SKColors.White);
+    var paint = new SKPaint { ImageFilter = SKImageFilter.CreateBlur(1.2f, 1.2f) };
+    c.DrawBitmap(up, 0, 0, paint);
+    surf.Snapshot().ReadPixels(blurred);
+}
+
+using var sharp = new SKBitmap(sx, sy, up.ColorType, up.AlphaType);
+for (int y = 0; y < sy; y++)
+for (int x = 0; x < sx; x++)
+{
+    byte a = up.GetPixel(x, y).Red;
+    byte b = blurred.GetPixel(x, y).Red;
+    int v = (int)(1.6 * a - 0.6 * b); // tweak 1.4/−0.4..1.8/−0.8
+    v = Math.Clamp(v, 0, 255);
+    sharp.SetPixel(x, y, new SKColor((byte)v, (byte)v, (byte)v));
+}
+
+// 3) threshold (fast global; OpenCV adaptive is better)
+using var outBmp = new SKBitmap(sx, sy, sharp.ColorType, sharp.AlphaType);
+for (int y = 0; y < sy; y++)
+for (int x = 0; x < sx; x++)
+{
+    byte g = sharp.GetPixel(x, y).Red;
+    byte t = (byte)(g > 160 ? 255 : 0); // tweak threshold 140–190
+    outBmp.SetPixel(x, y, new SKColor(t, t, t));
+}
+
+using var img = SKImage.FromBitmap(outBmp);
+using var data = img.Encode(SKEncodedImageFormat.Png, 100);
+using var fs = File.OpenWrite(tempPath);
+data.SaveTo(fs);
